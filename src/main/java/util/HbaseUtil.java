@@ -67,27 +67,41 @@ public class HbaseUtil {
             TableName table = TableName.valueOf(tableName);
             if(adminHbase.tableExists(table)){
                 Table hbaseTable = connection.getTable(table);
-                List<Result> result = scanRows(startRowKey, endRowKey,columnFamilies);
+                List<Result> result = scanRows(hbaseTable, startRowKey, endRowKey,columnFamilies);
             }
-
-
         } catch (IOException exception){
             System.out.println(exception);
         }
 
     }
 
-    private List<Result> scanRows(String startRowKey, String endRowKey, Map<String, List<String>> columnFamilies) {
+    private List<Result> scanRows(Table table, String startRowKey, String endRowKey, Map<String, List<String>> columnFamilies) throws IOException {
         List<Result> result = new ArrayList<>();
         Scan scanVo = buildScan(startRowKey, endRowKey, columnFamilies);
-        return null;
+        ResultScanner scanResult = table.getScanner(scanVo);
+        for(Result row : scanResult){
+            result.add(row);
+        }
+        return result;
     }
 
     private Scan buildScan(String startRowKey, String endRowKey, Map<String, List<String>> columnFamilies) {
         Scan scanVo = new Scan();
         scanVo.withStartRow(Bytes.toBytes(startRowKey), true);
         scanVo.withStopRow(Bytes.toBytes(endRowKey), false);
+        if(columnFamilies != null && columnFamilies.size() > 0){
+            for(Map.Entry<String, List<String>> entry : columnFamilies.entrySet()){
+                List<String> columns = entry.getValue();
+                if(columns == null){
+                    scanVo.addFamily(Bytes.toBytes(entry.getKey()));
+                } else {
+                    for(String column : columns){
+                        scanVo.addColumn(Bytes.toBytes(entry.getKey()), Bytes.toBytes(column));
+                    }
+                }
+            }
+        }
 
-        return null;
+        return scanVo;
     }
 }
