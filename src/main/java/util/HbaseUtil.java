@@ -1,5 +1,7 @@
 package util;
 
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.io.compress.Compression;
@@ -7,6 +9,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -62,16 +65,28 @@ public class HbaseUtil {
         return false;
     }
 
-    public void getData(String tableName, String startRowKey, String endRowKey, Map<String, List<String>> columnFamilies){
+    public List<Map<String, String>> getData(String tableName, String startRowKey, String endRowKey, Map<String, List<String>> columnFamilies){
+        List<Map<String, String>> list = new ArrayList<>();
         try(Admin adminHbase = connection.getAdmin()){
             TableName table = TableName.valueOf(tableName);
             if(adminHbase.tableExists(table)){
                 Table hbaseTable = connection.getTable(table);
                 List<Result> result = scanRows(hbaseTable, startRowKey, endRowKey,columnFamilies);
+                result.forEach(row->{
+                    Map<String, String> map = new HashMap<>();
+                    map.put("rowKey", Bytes.toString(row.getRow()));
+                    for(Cell cell :row.listCells()){
+                        map.put(Bytes.toString(CellUtil.cloneQualifier(cell)),
+                                Bytes.toString(CellUtil.cloneValue(cell)));
+                    }
+                    list.add(map);
+                });
+
             }
         } catch (IOException exception){
             System.out.println(exception);
         }
+        return list;
 
     }
 
